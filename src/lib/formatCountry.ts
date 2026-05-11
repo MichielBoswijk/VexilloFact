@@ -12,11 +12,21 @@ export function formatCapital(country: Country): string {
 
 export function formatRegionLine(country: Country): string {
   const r = country.region?.trim();
-  const s = country.subregion?.trim();
-  if (r && s) return `${r} / ${s}`;
   if (r) return r;
-  if (s) return s;
   return "—";
+}
+
+export function formatSovereignty(country: Country): string {
+  if (country.independent) {
+    if (country.unMember === true) {
+      return "Independent country — UN member state";
+    }
+    if (country.unMember === false) {
+      return "Independent country — not a UN member (e.g. observer or microstate)";
+    }
+    return "Independent country";
+  }
+  return "Territory, dependency, or other non-independent entity";
 }
 
 export function formatCurrencies(country: Country): string {
@@ -30,8 +40,3 @@ export function formatCurrencies(country: Country): string {
     .join(", ");
 }
 
-export function formatLanguages(country: Country): string {
-  const lang = country.languages;
-  if (!lang || Object.keys(lang).length === 0) return "—";
-  return Object.values(lang).join(", ");
-}

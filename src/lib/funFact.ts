@@ -14,10 +14,7 @@ function firstCurrency(country: Country): { name: string; symbol: string } | nul
 
 function regionLabel(country: Country): string {
   const r = country.region?.trim();
-  const s = country.subregion?.trim();
-  if (r && s) return `${r} (${s})`;
   if (r) return r;
-  if (s) return s;
   return "its home region";
 }
 

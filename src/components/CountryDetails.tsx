@@ -6,9 +6,9 @@ import type { LucideIcon } from "lucide-react";
 import {
   Coins,
   Landmark,
-  Languages,
   MapPinned,
   Ruler,
+  Shield,
   Users,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -16,9 +16,9 @@ import type { Country } from "@/lib/countries";
 import {
   formatCapital,
   formatCurrencies,
-  formatLanguages,
   formatPopulation,
   formatRegionLine,
+  formatSovereignty,
 } from "@/lib/formatCountry";
 import { describeAreaRelatable } from "@/lib/areaCopy";
 import { getCountryFactLine } from "@/lib/funFact";
@@ -42,13 +42,16 @@ function StatRow({
   value: string;
 }) {
   return (
-    <div className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3">
-      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+    <div className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+      <Icon
+        className="mt-0.5 h-5 w-5 shrink-0 text-slate-500 dark:text-slate-400"
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
           {label}
         </p>
-        <p className="mt-0.5 text-base font-medium leading-snug text-slate-900">
+        <p className="mt-0.5 text-base font-medium leading-snug text-slate-900 dark:text-slate-100">
           {value}
         </p>
       </div>
@@ -101,7 +104,7 @@ export function CountryDetails({
       transition={{ duration: 0.22 }}
     >
       <motion.div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] dark:bg-black/70"
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -109,7 +112,7 @@ export function CountryDetails({
       />
 
       <motion.div
-        className="relative flex max-h-[min(92dvh,720px)] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.18)]"
+        className="relative flex max-h-[min(92dvh,720px)] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.18)] dark:bg-slate-900 dark:shadow-[0_-8px_40px_rgba(0,0,0,0.45)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="vexillo-result-title"
@@ -120,7 +123,10 @@ export function CountryDetails({
         transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.9 }}
       >
         <div className="flex shrink-0 justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-slate-200" aria-hidden />
+          <div
+            className="h-1 w-10 rounded-full bg-slate-200 dark:bg-slate-600"
+            aria-hidden
+          />
         </div>
 
         <div
@@ -190,8 +196,8 @@ export function CountryDetails({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4">
-          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
-            <div className="relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+            <div className="relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-950">
               <Image
                 src={flagSrc}
                 alt=""
@@ -201,10 +207,10 @@ export function CountryDetails({
               />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Country
               </p>
-              <p className="truncate text-lg font-semibold text-slate-900">
+              <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {country.name.common}
               </p>
             </div>
@@ -226,36 +232,36 @@ export function CountryDetails({
               label="Region"
               value={formatRegionLine(country)}
             />
+            <StatRow
+              icon={Shield}
+              label="Sovereignty"
+              value={formatSovereignty(country)}
+            />
             <StatRow icon={Ruler} label="Land area" value={areaLine} />
             <StatRow
               icon={Coins}
               label="Currencies"
               value={formatCurrencies(country)}
             />
-            <StatRow
-              icon={Languages}
-              label="Languages"
-              value={formatLanguages(country)}
-            />
           </div>
 
-          <div className="mt-4 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-amber-50 via-white to-sky-50 px-4 py-4 shadow-sm">
-            <p className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900">
+          <div className="mt-4 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-amber-50 via-white to-sky-50 px-4 py-4 shadow-sm dark:border-sky-800/50 dark:from-amber-950/40 dark:via-slate-900 dark:to-sky-950/40">
+            <p className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900 dark:text-amber-50">
               <span
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-lg text-amber-700 ring-1 ring-amber-200/80"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-lg text-amber-700 ring-1 ring-amber-200/80 dark:bg-amber-900/50 dark:text-amber-200 dark:ring-amber-700/60"
                 aria-hidden
               >
                 💡
               </span>
               Did you know?
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-800">
+            <p className="mt-3 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
               {factLine}
             </p>
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 dark:border-slate-700 dark:bg-slate-900">
           <button
             ref={playAgainRef}
             type="button"

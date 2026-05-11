@@ -19,6 +19,10 @@ import {
 } from "@/lib/gameSounds";
 import { countryNameMatchesGuess } from "@/lib/guessMatch";
 import {
+  resolveWrongGuessFlag,
+  type WrongGuessFlag,
+} from "@/lib/findGuessCountry";
+import {
   applyLoss,
   applyWin,
   loadStreaks,
@@ -29,19 +33,32 @@ const INITIAL_ATTEMPTS = 3;
 
 type GameState = "playing" | "won" | "lost";
 
+function wrongForSlot(
+  i: number,
+  attemptsLeft: number,
+  wrongGuesses: WrongGuessFlag[],
+): WrongGuessFlag | undefined {
+  if (i < attemptsLeft) return undefined;
+  const idx = wrongGuesses.length - (INITIAL_ATTEMPTS - i);
+  if (idx < 0 || idx >= wrongGuesses.length) return undefined;
+  return wrongGuesses[idx];
+}
+
 function LifeSlot({
-  active,
+  remainingLife,
+  wrong,
   pulseToken,
   index,
 }: {
-  active: boolean;
+  remainingLife: boolean;
+  wrong?: WrongGuessFlag;
   pulseToken: number;
   index: number;
 }) {
   const controls = useAnimation();
 
   useEffect(() => {
-    if (!active || pulseToken === 0) return;
+    if (!remainingLife || pulseToken === 0) return;
     void controls.start({
       scale: [1, 1.2, 1],
       transition: {
@@ -50,20 +67,42 @@ function LifeSlot({
         delay: index * 0.07,
       },
     });
-  }, [pulseToken, active, controls, index]);
+  }, [pulseToken, remainingLife, controls, index]);
+
+  const lost = !remainingLife;
+  const showFlag = lost && wrong?.png;
 
   return (
     <motion.div
       animate={controls}
-      className={`flex h-10 w-11 items-center justify-center rounded-lg border shadow-sm ${
-        active
-          ? "border-emerald-200/80 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-900/10"
-          : "border-slate-200 bg-slate-100 text-slate-300 opacity-55 grayscale"
+      title={lost && wrong?.label ? `Guess: ${wrong.label}` : undefined}
+      className={`relative flex h-10 w-11 items-center justify-center overflow-hidden rounded-lg border shadow-sm ${
+        remainingLife
+          ? "border-emerald-200/80 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-900/10 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-900/30"
+          : showFlag
+            ? "border-2 border-rose-500 ring-2 ring-rose-400/30 dark:border-rose-400 dark:ring-rose-500/25"
+            : "border-2 border-rose-400 bg-rose-50 dark:border-rose-500 dark:bg-rose-950/40"
       }`}
       aria-hidden
     >
-      <Flag className="h-5 w-5" strokeWidth={2.25} />
-      <span className="sr-only">{active ? "Attempt remaining" : "Attempt used"}</span>
+      {showFlag ? (
+        <Image
+          src={wrong.png!}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="44px"
+        />
+      ) : lost ? (
+        <span className="px-1 text-center text-[10px] font-bold leading-tight text-rose-600 dark:text-rose-300">
+          ?
+        </span>
+      ) : (
+        <Flag className="h-5 w-5" strokeWidth={2.25} />
+      )}
+      <span className="sr-only">
+        {remainingLife ? "Attempt remaining" : "Wrong attempt"}
+      </span>
     </motion.div>
   );
 }
@@ -83,6 +122,7 @@ export function GameContainer() {
     high: 0,
   });
   const [lifePulseToken, setLifePulseToken] = useState(0);
+  const [wrongGuesses, setWrongGuesses] = useState<WrongGuessFlag[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +174,7 @@ export function GameContainer() {
     setAttemptsLeft(INITIAL_ATTEMPTS);
     setGameState("playing");
     setSuggestOpen(false);
+    setWrongGuesses([]);
     void inputShake.set({ x: 0 });
     setIndex((prev) => pickRandomCountryIndex(countries, prev));
   }, [countries, inputShake]);
@@ -154,6 +195,11 @@ export function GameContainer() {
       setSuggestOpen(false);
       return;
     }
+
+    setWrongGuesses((prev) => [
+      ...prev,
+      resolveWrongGuessFlag(countries, trimmed, country),
+    ]);
 
     void playWrongSound();
     vibrateWrong();
@@ -198,13 +244,18 @@ export function GameContainer() {
 
   if (loading) {
     return (
-      <p className="text-center text-sm text-slate-600">Loading flags…</p>
+      <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+        Loading flags…
+      </p>
     );
   }
 
   if (error) {
     return (
-      <p className="text-center text-sm text-red-700" role="alert">
+      <p
+        className="text-center text-sm text-red-700 dark:text-red-400"
+        role="alert"
+      >
         {error}
       </p>
     );
@@ -212,7 +263,9 @@ export function GameContainer() {
 
   if (!countries?.length) {
     return (
-      <p className="text-center text-sm text-slate-600">No countries found.</p>
+      <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+        No countries found.
+      </p>
     );
   }
 
@@ -221,7 +274,7 @@ export function GameContainer() {
 
   if (!country || !src) {
     return (
-      <p className="text-center text-sm text-slate-600">
+      <p className="text-center text-sm text-slate-600 dark:text-slate-400">
         No flag image for this entry.
       </p>
     );
@@ -231,21 +284,21 @@ export function GameContainer() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-2.5 text-center shadow-sm backdrop-blur-sm">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-2.5 text-center shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
           Streaks
         </p>
         <div className="mt-1 flex items-center justify-center gap-4 text-sm">
-          <span className="text-slate-600">
+          <span className="text-slate-600 dark:text-slate-300">
             Current{" "}
-            <span className="font-semibold tabular-nums text-slate-900">
+            <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
               {streaks.current}
             </span>
           </span>
-          <span className="h-4 w-px bg-slate-200" aria-hidden />
-          <span className="text-slate-600">
+          <span className="h-4 w-px bg-slate-200 dark:bg-slate-600" aria-hidden />
+          <span className="text-slate-600 dark:text-slate-300">
             Best{" "}
-            <span className="font-semibold tabular-nums text-indigo-700">
+            <span className="font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
               {streaks.high}
             </span>
           </span>
@@ -257,21 +310,26 @@ export function GameContainer() {
         role="status"
         aria-label={`${attemptsLeft} of ${INITIAL_ATTEMPTS} attempts remaining`}
       >
-        {Array.from({ length: INITIAL_ATTEMPTS }, (_, i) => (
-          <LifeSlot
-            key={i}
-            index={i}
-            active={i < attemptsLeft}
-            pulseToken={lifePulseToken}
-          />
-        ))}
+        {Array.from({ length: INITIAL_ATTEMPTS }, (_, i) => {
+          const remainingLife = i < attemptsLeft;
+          const wrong = wrongForSlot(i, attemptsLeft, wrongGuesses);
+          return (
+            <LifeSlot
+              key={i}
+              index={i}
+              remainingLife={remainingLife}
+              wrong={wrong}
+              pulseToken={lifePulseToken}
+            />
+          );
+        })}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
-            className="relative aspect-[4/3] w-full bg-slate-100"
+            className="relative aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800/80"
             initial={{ opacity: 0, x: 56 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
@@ -338,13 +396,13 @@ export function GameContainer() {
                   }
                 }}
                 disabled={!playing}
-                className="w-full min-h-[52px] rounded-xl border-2 border-slate-200 bg-white px-4 text-xl text-slate-900 shadow-sm outline-none ring-slate-900/10 placeholder:text-slate-400 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 disabled:opacity-60"
+                className="w-full min-h-[52px] rounded-xl border-2 border-slate-200 bg-white px-4 text-xl text-slate-900 shadow-sm outline-none ring-slate-900/10 placeholder:text-slate-400 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/20"
               />
             </motion.div>
 
             {suggestOpen && suggestions.length > 0 && (
               <div
-                className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-900"
                 role="menu"
                 aria-label="Country suggestions"
                 onMouseDown={cancelBlurClose}
@@ -354,7 +412,7 @@ export function GameContainer() {
                     key={name}
                     type="button"
                     role="menuitem"
-                    className="flex w-full min-h-[48px] items-center px-4 text-left text-base text-slate-800 hover:bg-slate-50 active:bg-slate-100"
+                    className="flex w-full min-h-[48px] items-center px-4 text-left text-base text-slate-800 hover:bg-slate-50 active:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800 dark:active:bg-slate-700"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setUserGuess(name);
@@ -373,7 +431,7 @@ export function GameContainer() {
             type="button"
             onClick={() => void submitGuess()}
             disabled={!playing || !userGuess.trim()}
-            className="min-h-[52px] w-full rounded-xl bg-slate-900 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-slate-800 active:bg-slate-950 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-[52px] w-full rounded-xl bg-slate-900 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-slate-800 active:bg-slate-950 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:active:bg-indigo-700 dark:disabled:bg-slate-600"
           >
             Submit
           </button>

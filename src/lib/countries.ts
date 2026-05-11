@@ -1,6 +1,6 @@
 /** Public API requires `fields` on `/all` (max 10 fields). */
 export const REST_COUNTRIES_URL =
-  "https://restcountries.com/v3.1/all?fields=name,flags,cca3,capital,population,region,subregion,currencies,languages,area";
+  "https://restcountries.com/v3.1/all?fields=name,flags,cca3,capital,population,region,currencies,area,independent,unMember";
 
 export type Country = {
   cca3: string;
@@ -9,10 +9,10 @@ export type Country = {
   capital?: string[];
   population: number;
   region: string;
-  subregion?: string;
   currencies?: Record<string, { name: string; symbol?: string }>;
-  languages?: Record<string, string>;
   area?: number;
+  independent: boolean;
+  unMember?: boolean;
 };
 
 function isCountry(value: unknown): value is Country {
@@ -24,6 +24,7 @@ function isCountry(value: unknown): value is Country {
   if (typeof o.cca3 !== "string" || typeof common !== "string") return false;
   if (typeof o.population !== "number") return false;
   if (typeof o.region !== "string") return false;
+  if (typeof o.independent !== "boolean") return false;
   return true;
 }
 
