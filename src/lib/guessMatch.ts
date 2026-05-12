@@ -1,3 +1,5 @@
+import type { Country } from "@/lib/countries";
+
 /** Lowercase, trim, collapse spaces, strip combining marks for accent-insensitive compare. */
 export function normalizeCountryGuess(s: string): string {
   const collapsed = s
@@ -33,9 +35,10 @@ function levenshtein(a: string, b: string): number {
 }
 
 /**
- * Case-insensitive match with light typo tolerance (Levenshtein cap scales with length).
+ * Typo-tolerant match between guess and a single country common name (Levenshtein cap scales with length).
+ * Does not consider other countries — use {@link guessMatchesAnswerCountry} for quiz correctness.
  */
-export function countryNameMatchesGuess(
+export function fuzzyMatchGuessToCountryName(
   guess: string,
   commonName: string,
 ): boolean {
@@ -48,4 +51,25 @@ export function countryNameMatchesGuess(
   if (n <= 5) return dist <= 1;
   if (n <= 12) return dist <= 2;
   return dist <= Math.min(3, Math.ceil(n * 0.2));
+}
+
+/**
+ * True if the guess counts as correct for this answer: exact match to answer, else fuzzy match to answer,
+ * unless the guess is an exact normalized match for a *different* quiz country's common name (so
+ * "Nigeria" is wrong when the flag is Niger, while typos like "Niger" still fuzzy-match).
+ */
+export function guessMatchesAnswerCountry(
+  guess: string,
+  answer: Country,
+  quizCountries: Country[],
+): boolean {
+  const g = normalizeCountryGuess(guess);
+  if (g.length === 0) return false;
+  const answerNorm = normalizeCountryGuess(answer.name.common);
+  if (g === answerNorm) return true;
+  for (const c of quizCountries) {
+    if (c.cca3 === answer.cca3) continue;
+    if (g === normalizeCountryGuess(c.name.common)) return false;
+  }
+  return fuzzyMatchGuessToCountryName(guess, answer.name.common);
 }

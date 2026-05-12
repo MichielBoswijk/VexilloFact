@@ -1,27 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
-import type { LucideIcon } from "lucide-react";
-import {
-  Coins,
-  Landmark,
-  MapPinned,
-  Ruler,
-  Shield,
-  Users,
-} from "lucide-react";
 import { useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import type { Country } from "@/lib/countries";
-import {
-  formatCapital,
-  formatCurrencies,
-  formatPopulation,
-  formatRegionLine,
-  formatSovereignty,
-} from "@/lib/formatCountry";
-import { describeAreaRelatable } from "@/lib/areaCopy";
-import { getCountryFactLine } from "@/lib/funFact";
+import { CountryLearnPanel } from "@/components/CountryLearnPanel";
 
 type GameOutcome = "won" | "lost";
 
@@ -29,35 +12,14 @@ type CountryDetailsProps = {
   gameState: GameOutcome;
   country: Country;
   flagSrc: string;
+  /** Lives still available when the round ended (0 = used them all). */
+  attemptsLeft: number;
   onPlayAgain: () => void;
+  /** Optional copy overrides for marathon / custom flows. */
+  resultTitle?: string;
+  resultDescription?: ReactNode;
+  playAgainLabel?: string;
 };
-
-function StatRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-      <Icon
-        className="mt-0.5 h-5 w-5 shrink-0 text-slate-500 dark:text-slate-400"
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {label}
-        </p>
-        <p className="mt-0.5 text-base font-medium leading-snug text-slate-900 dark:text-slate-100">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const WIN_SPARKLES = [
   { left: "8%", top: "18%", delay: 0, size: 6 },
@@ -73,11 +35,13 @@ export function CountryDetails({
   gameState,
   country,
   flagSrc,
+  attemptsLeft,
   onPlayAgain,
+  resultTitle,
+  resultDescription,
+  playAgainLabel,
 }: CountryDetailsProps) {
   const playAgainRef = useRef<HTMLButtonElement>(null);
-  const factLine = getCountryFactLine(country);
-  const areaLine = describeAreaRelatable(country.area);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -93,6 +57,8 @@ export function CountryDetails({
   }, []);
 
   const won = gameState === "won";
+  const usedAllLives = attemptsLeft <= 0;
+  const continueLabel = playAgainLabel ?? (usedAllLives ? "Play Again" : "Next");
 
   return (
     <motion.div
@@ -177,88 +143,27 @@ export function CountryDetails({
               id="vexillo-result-title"
               className="text-2xl font-bold tracking-tight"
             >
-              {won ? "Correct!" : "Incorrect"}
+              {resultTitle ?? (won ? "Correct!" : "Incorrect")}
             </p>
             <p id="vexillo-result-desc" className="mt-1 text-base text-white/90">
-              {won ? (
-                <>
-                  You identified{" "}
-                  <span className="font-semibold">{country.name.common}</span>.
-                </>
-              ) : (
-                <>
-                  The answer was{" "}
-                  <span className="font-semibold">{country.name.common}</span>.
-                </>
-              )}
+              {resultDescription ??
+                (won ? (
+                  <>
+                    You identified{" "}
+                    <span className="font-semibold">{country.name.common}</span>.
+                  </>
+                ) : (
+                  <>
+                    The answer was{" "}
+                    <span className="font-semibold">{country.name.common}</span>.
+                  </>
+                ))}
             </p>
           </motion.div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4">
-          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-            <div className="relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-950">
-              <Image
-                src={flagSrc}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="72px"
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Country
-              </p>
-              <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
-                {country.name.common}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2.5">
-            <StatRow
-              icon={Landmark}
-              label="Capital"
-              value={formatCapital(country)}
-            />
-            <StatRow
-              icon={Users}
-              label="Population"
-              value={formatPopulation(country.population)}
-            />
-            <StatRow
-              icon={MapPinned}
-              label="Region"
-              value={formatRegionLine(country)}
-            />
-            <StatRow
-              icon={Shield}
-              label="Sovereignty"
-              value={formatSovereignty(country)}
-            />
-            <StatRow icon={Ruler} label="Land area" value={areaLine} />
-            <StatRow
-              icon={Coins}
-              label="Currencies"
-              value={formatCurrencies(country)}
-            />
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-amber-50 via-white to-sky-50 px-4 py-4 shadow-sm dark:border-sky-800/50 dark:from-amber-950/40 dark:via-slate-900 dark:to-sky-950/40">
-            <p className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900 dark:text-amber-50">
-              <span
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-lg text-amber-700 ring-1 ring-amber-200/80 dark:bg-amber-900/50 dark:text-amber-200 dark:ring-amber-700/60"
-                aria-hidden
-              >
-                💡
-              </span>
-              Did you know?
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-              {factLine}
-            </p>
-          </div>
+          <CountryLearnPanel country={country} flagSrc={flagSrc} hideHeading />
         </div>
 
         <div className="shrink-0 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 dark:border-slate-700 dark:bg-slate-900">
@@ -272,7 +177,7 @@ export function CountryDetails({
                 : "bg-rose-700 hover:bg-rose-800 active:bg-rose-900 focus-visible:ring-rose-400"
             }`}
           >
-            Play Again
+            {continueLabel}
           </button>
         </div>
       </motion.div>

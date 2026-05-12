@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { AppNav } from "@/components/AppNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body className={`${geistSans.className} antialiased`}>
         <ThemeProvider>
           <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--background)] px-4 py-6 text-[var(--foreground)] transition-colors duration-200 dark:bg-slate-950">
+            <AppNav />
             {children}
           </div>
         </ThemeProvider>

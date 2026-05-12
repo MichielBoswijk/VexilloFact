@@ -1,6 +1,6 @@
 import type { Country } from "@/lib/countries";
 import {
-  countryNameMatchesGuess,
+  fuzzyMatchGuessToCountryName,
   normalizeCountryGuess,
 } from "@/lib/guessMatch";
 
@@ -9,6 +9,8 @@ export type WrongGuessFlag = {
   png?: string;
   /** Resolved country name or the raw guess text */
   label: string;
+  /** When the guess resolved to a dataset country (for confusion stats). */
+  guessedCca3?: string;
 };
 
 /**
@@ -29,17 +31,26 @@ export function resolveWrongGuessFlag(
   for (const c of countries) {
     if (c.cca3 === answer.cca3) continue;
     if (normalizeCountryGuess(c.name.common) === g) {
-      return { png: c.flags?.png, label: c.name.common };
+      return {
+        png: c.flags?.png,
+        label: c.name.common,
+        guessedCca3: c.cca3,
+      };
     }
   }
 
   const fuzzy = countries.filter(
     (c) =>
-      c.cca3 !== answer.cca3 && countryNameMatchesGuess(trimmed, c.name.common),
+      c.cca3 !== answer.cca3 &&
+      fuzzyMatchGuessToCountryName(trimmed, c.name.common),
   );
   if (fuzzy.length === 1) {
     const c = fuzzy[0];
-    return { png: c.flags?.png, label: c.name.common };
+    return {
+      png: c.flags?.png,
+      label: c.name.common,
+      guessedCca3: c.cca3,
+    };
   }
 
   return { label: trimmed };

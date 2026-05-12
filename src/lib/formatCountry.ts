@@ -1,4 +1,5 @@
 import type { Country } from "@/lib/countries";
+import { getParentCountry } from "@/data/parentCountries";
 
 export function formatPopulation(n: number): string {
   return new Intl.NumberFormat(undefined).format(n);
@@ -25,6 +26,10 @@ export function formatSovereignty(country: Country): string {
       return "Independent country — not a UN member (e.g. observer or microstate)";
     }
     return "Independent country";
+  }
+  const parent = getParentCountry(country.cca3);
+  if (parent) {
+    return `Territory or dependency — part of ${parent}`;
   }
   return "Territory, dependency, or other non-independent entity";
 }
