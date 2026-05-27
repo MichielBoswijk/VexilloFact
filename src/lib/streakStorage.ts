@@ -59,3 +59,8 @@ export function applyLoss(snapshot: StreakSnapshot): StreakSnapshot {
   saveStreaks(next);
   return next;
 }
+
+/** Start a fresh marathon run; best streak is preserved. */
+export function resetCurrentStreak(snapshot: StreakSnapshot): StreakSnapshot {
+  return applyLoss(snapshot);
+}

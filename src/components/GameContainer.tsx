@@ -40,9 +40,16 @@ import {
 } from "@/lib/guessStatsStorage";
 import { buildMarathonFlagQueue } from "@/lib/marathonQueue";
 import {
+  buildSessionSnapshot,
+  clearGameSession,
+  restoreGameSession,
+  saveGameSession,
+} from "@/lib/gameSessionStorage";
+import {
   applyLoss,
   applyWin,
   loadStreaks,
+  resetCurrentStreak,
   type StreakSnapshot,
 } from "@/lib/streakStorage";
 
@@ -164,6 +171,8 @@ export function GameContainer() {
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputShake = useAnimation();
+  const marathonInitialized = useRef(false);
+  const modePaceRef = useRef({ mode, gamePace });
 
   useEffect(() => {
     setStreaks(loadStreaks());
@@ -247,9 +256,11 @@ export function GameContainer() {
       setSuggestOpen(false);
       setLifeLossFlags([]);
       setCasualLearn(null);
+      clearGameSession();
       return;
     }
-    setFlagQueue(buildMarathonFlagQueue(playableCountries, mode));
+    const queue = buildMarathonFlagQueue(playableCountries, mode);
+    setFlagQueue(queue);
     setMarathonTotal(playableCountries.length);
     setLivesRemaining(LIVES_PER_GAME);
     setGameState("playing");
@@ -258,11 +269,107 @@ export function GameContainer() {
     setSuggestOpen(false);
     setLifeLossFlags([]);
     setCasualLearn(null);
-  }, [playableCountries, mode]);
+    saveGameSession(
+      buildSessionSnapshot({
+        mode,
+        gamePace,
+        marathonTotal: playableCountries.length,
+        flagQueue: queue,
+        livesRemaining: LIVES_PER_GAME,
+        gameState: "playing",
+        outcomeCountry: null,
+        lifeLossFlags: [],
+        casualLearn: null,
+      }),
+    );
+  }, [playableCountries, mode, gamePace]);
 
-  useEffect(() => {
+  const startNewGame = useCallback(() => {
+    setStreaks((s) => resetCurrentStreak(s));
     startNewMarathon();
   }, [startNewMarathon]);
+
+  useEffect(() => {
+    if (loading || !countries) return;
+    if (marathonInitialized.current) return;
+
+    if (!playableCountries.length) {
+      marathonInitialized.current = true;
+      return;
+    }
+
+    const restored = restoreGameSession(playableCountries, mode, gamePace);
+    if (restored) {
+      setFlagQueue(restored.flagQueue);
+      setMarathonTotal(restored.marathonTotal);
+      setLivesRemaining(restored.livesRemaining);
+      setGameState(restored.gameState);
+      setOutcomeCountry(restored.outcomeCountry);
+      setLifeLossFlags(restored.lifeLossFlags);
+      setCasualLearn(restored.casualLearn);
+      setUserGuess("");
+      setSuggestOpen(false);
+    } else {
+      startNewMarathon();
+    }
+    marathonInitialized.current = true;
+    modePaceRef.current = { mode, gamePace };
+  }, [loading, countries, playableCountries, mode, gamePace, startNewMarathon]);
+
+  useEffect(() => {
+    if (!marathonInitialized.current || loading || !countries) return;
+    if (!playableCountries.length) return;
+    const prev = modePaceRef.current;
+    if (prev.mode === mode && prev.gamePace === gamePace) return;
+    modePaceRef.current = { mode, gamePace };
+
+    const restored = restoreGameSession(playableCountries, mode, gamePace);
+    if (restored) {
+      setFlagQueue(restored.flagQueue);
+      setMarathonTotal(restored.marathonTotal);
+      setLivesRemaining(restored.livesRemaining);
+      setGameState(restored.gameState);
+      setOutcomeCountry(restored.outcomeCountry);
+      setLifeLossFlags(restored.lifeLossFlags);
+      setCasualLearn(restored.casualLearn);
+      setUserGuess("");
+      setSuggestOpen(false);
+    } else {
+      startNewMarathon();
+    }
+  }, [loading, countries, playableCountries, mode, gamePace, startNewMarathon]);
+
+  useEffect(() => {
+    if (!marathonInitialized.current || loading || !countries) return;
+    if (!playableCountries.length && marathonTotal === 0) return;
+
+    saveGameSession(
+      buildSessionSnapshot({
+        mode,
+        gamePace,
+        marathonTotal,
+        flagQueue,
+        livesRemaining,
+        gameState,
+        outcomeCountry,
+        lifeLossFlags,
+        casualLearn,
+      }),
+    );
+  }, [
+    loading,
+    countries,
+    mode,
+    gamePace,
+    marathonTotal,
+    flagQueue,
+    livesRemaining,
+    gameState,
+    outcomeCountry,
+    lifeLossFlags,
+    casualLearn,
+    playableCountries.length,
+  ]);
 
   const currentCountry = flagQueue[0];
   const currentCca3 = currentCountry?.cca3;
@@ -454,27 +561,43 @@ export function GameContainer() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-2.5 text-center shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70">
-        <p
-          className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400"
-          title="Each correct flag adds 1 to current. Resets when you run out of lives."
-        >
-          Streaks
-        </p>
-        <div className="mt-1 flex items-center justify-center gap-4 text-sm">
-          <span className="text-slate-600 dark:text-slate-300">
-            Current{" "}
-            <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
-              {streaks.current}
-            </span>
-          </span>
-          <span className="h-4 w-px bg-slate-200 dark:bg-slate-600" aria-hidden />
-          <span className="text-slate-600 dark:text-slate-300">
-            Best{" "}
-            <span className="font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
-              {streaks.high}
-            </span>
-          </span>
+      <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 text-center">
+            <p
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400"
+              title="Each correct flag adds 1 to current. Resets when you start a new game or run out of lives."
+            >
+              Streaks
+            </p>
+            <div className="mt-1 flex items-center justify-center gap-4 text-sm">
+              <span className="text-slate-600 dark:text-slate-300">
+                Current{" "}
+                <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
+                  {streaks.current}
+                </span>
+              </span>
+              <span
+                className="h-4 w-px bg-slate-200 dark:bg-slate-600"
+                aria-hidden
+              />
+              <span className="text-slate-600 dark:text-slate-300">
+                Best{" "}
+                <span className="font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
+                  {streaks.high}
+                </span>
+              </span>
+            </div>
+          </div>
+          {!emptyMode && !noPlayable && marathonTotal > 0 && (
+            <button
+              type="button"
+              onClick={startNewGame}
+              className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 active:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              New game
+            </button>
+          )}
         </div>
       </div>
 
@@ -558,7 +681,7 @@ export function GameContainer() {
                   country={detailsCountry}
                   flagSrc={detailsSrc}
                   attemptsLeft={livesRemaining}
-                  onPlayAgain={startNewMarathon}
+                  onPlayAgain={startNewGame}
                   playAgainLabel="New game"
                   resultTitle={gameState === "won" ? "You win!" : "Game over"}
                   resultDescription={
